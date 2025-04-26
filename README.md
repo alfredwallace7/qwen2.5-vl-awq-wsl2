@@ -27,6 +27,9 @@ Implementation of OpenAI Chat Completions API for Qwen2.5-VL on WSL2 Linux.
 ### 🤫 AWQ
 - Supports both 7B and 32B AWQ models for consumer-grade inference.
 
+### 🛠️ PowerShell
+- PowerShell scripts for port forwarding and firewall rules.
+
 ---
 
 ## 🛠️ Installation
