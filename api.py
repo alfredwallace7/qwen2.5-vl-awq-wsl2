@@ -42,7 +42,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--port', type=int, default=9192, help="Which port to listen on for HTTP API requests")
-parser.add_argument('--size', type=str, choices=['7B', '32B'], default='32B', help="Which Qwen 2.5 VL AWQ model size to load (7B or 32B)")
+parser.add_argument('--size', type=str, choices=['7B', '32B'], default='7B', help="Which Qwen 2.5 VL AWQ model size to load (7B or 32B)")
 parser.add_argument(
     '--resume',
     action='store_true',
@@ -170,15 +170,15 @@ def log_system_info():
         logger.warning(f"Failed to log system info: {str(e)}")
 
 def clean_generated_text(text):
-    """Clean generated text by removing special characters and control tokens"""
+    """Clean generated text by removing special characters and control tokens, but preserve newlines."""
     # Remove common special tokens that might appear in generation
-    text = re.sub(r'<\|.*?\|>', '', text)
+    text = re.sub(r'\u003c\|.*?\|\u003e', '', text)
     
     # Remove diamond characters and other common artifacts
     text = re.sub(r'[◆◇■□▲△▼▽★☆♦♢]', '', text)
     
-    # Remove other control characters
-    text = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', text)
+    # Remove other control characters, but preserve newlines (\n, \r)
+    text = re.sub(r'[\x00-\x09\x0b\x0c\x0e-\x1F\x7F-\x9F]', '', text)
     
     return text
 
