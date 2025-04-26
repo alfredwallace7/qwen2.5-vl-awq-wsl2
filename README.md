@@ -112,6 +112,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\remove-portproxy.ps1
 
 ---
 
+## 🛠️ Suggested chat client
+
+- [ChatBox](https://github.com/alfredwallace7/chatbox) Open source Windows desktop chat application
+
+---
+
 # 🙏 Thanks
 
 - [Qwen](https://github.com/QwenLM/Qwen2.5-VL)
