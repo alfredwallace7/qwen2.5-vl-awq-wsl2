@@ -1,7 +1,9 @@
+from dotenv import load_dotenv
+load_dotenv(override=True)
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 from typing import Optional, List, Union, Dict, Any
 import torch
@@ -49,7 +51,15 @@ parser.add_argument(
     help="Attempt to resume partial downloads if possible"
 )
 parser.add_argument('--log', action='store_true', help="Enable logging of request, response, and tool/function definitions")
+parser.add_argument('--api_key', action='store_true', help="Enforce API key from .env API_KEY variable on all requests")
 args = parser.parse_args()
+
+# Load .env if --api_key is set
+if args.api_key:
+    load_dotenv()
+    API_KEY = os.getenv('API_KEY')
+    if not API_KEY:
+        raise RuntimeError("API_KEY must be set in .env when using --api_key flag.")
 
 # Model selection logic for AWQ only
 AWQ_MODEL_NAMES = {
@@ -275,42 +285,17 @@ class StreamingLogitsProcessor:
         
         return scores
 
-@app.get("/v1/models", response_model=ModelList)
-async def list_models():
-    """List available models"""
-    return ModelList(
-        data=[
-            ModelCard(
-                id=current_loaded_model,
-                created=1709251200,
-                owned_by="Qwen",
-                permission=[{
-                    "id": current_loaded_model,
-                    "created": 1709251200,
-                    "allow_create_engine": False,
-                    "allow_sampling": True,
-                    "allow_logprobs": True,
-                    "allow_search_indices": False,
-                    "allow_view": True,
-                    "allow_fine_tuning": False,
-                    "organization": "*",
-                    "group": None,
-                    "is_blocking": False
-                }],
-                capabilities={
-                    "vision": True,
-                    "chat": True,
-                    "embeddings": False,
-                    "text_completion": True
-                },
-                context_window=131072,
-                max_tokens=8192
-            )
-        ]
-    )
+from fastapi import Depends
+
+# Dependency to enforce API key if required
+def enforce_api_key(request: Request):
+    if args.api_key:
+        key = request.headers.get("Authorization")
+        if not key or not key.startswith("Bearer ") or key.split(" ", 1)[1] != API_KEY:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing API key.")
 
 @app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
-async def chat_completions(request: ChatCompletionRequest):
+async def chat_completions(request: ChatCompletionRequest, _: None = Depends(enforce_api_key)):
     """Handle chat completion requests with vision support"""
 
     if request.model != current_loaded_model:
@@ -540,6 +525,40 @@ async def chat_completions(request: ChatCompletionRequest):
         if isinstance(e, HTTPException):
             raise
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/v1/models", response_model=ModelList)
+async def list_models(_: None = Depends(enforce_api_key)):
+    """List available models"""
+    return ModelList(
+        data=[
+            ModelCard(
+                id=current_loaded_model,
+                created=1709251200,
+                owned_by="Qwen",
+                permission=[{
+                    "id": current_loaded_model,
+                    "created": 1709251200,
+                    "allow_create_engine": False,
+                    "allow_sampling": True,
+                    "allow_logprobs": True,
+                    "allow_search_indices": False,
+                    "allow_view": True,
+                    "allow_fine_tuning": False,
+                    "organization": "*",
+                    "group": None,
+                    "is_blocking": False
+                }],
+                capabilities={
+                    "vision": True,
+                    "chat": True,
+                    "embeddings": False,
+                    "text_completion": True
+                },
+                context_window=131072,
+                max_tokens=8192
+            )
+        ]
+    )
 
 @app.get("/health")
 async def health_check():

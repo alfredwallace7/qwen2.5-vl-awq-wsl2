@@ -42,6 +42,15 @@ pytest test
 ```
 
 ## setup port forwarding on the windows host
+
+Edit `scripts\setup-portproxy.ps1` to set the desired port number (default is 9192)
+```
+param(
+    [int]$Port = 9192
+)
+```
+
+Run the script:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\setup-portproxy.ps1
 ```
